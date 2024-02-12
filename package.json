@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "universal-download",
-  "title": "Universal download",
+  "title": "Universal Download",
   "description": "Universal download is wrapper of yt-dlp.",
   "icon": "command-icon.png",
   "author": "korex71",
@@ -15,7 +15,7 @@
   "commands": [
     {
       "name": "index",
-      "title": "Universal download",
+      "title": "Universal Download",
       "subtitle": "Download videos",
       "description": "Download videos with link",
       "mode": "view"

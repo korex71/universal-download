@@ -16,7 +16,7 @@ export default function Command() {
   const duration = videoInfo?.duration || 0;
   const title = videoInfo?.title || "";
   const formats = videoInfo?.formats || [];
-  
+
   const { handleSubmit, values, itemProps, setValue, setValidationError } = useForm<DownloadOptions>({
     onSubmit: async (values) => {
       setLoading(true);
@@ -27,11 +27,10 @@ export default function Command() {
     },
     validation: {
       url: (value) => {
-        console.log(value)
+        console.log(value);
         if (!value) {
           return "URL is required";
         }
-
       },
       format: FormValidation.Required,
       startTime: (value) => {
@@ -54,36 +53,35 @@ export default function Command() {
     },
   });
 
-
   useEffect(() => {
     if (values.url && isValidUrl(values.url)) {
       setLoading(true);
 
       const ytDlpWrap = new YTDlpWrap(preferences.ytdlpBinaryPath);
 
-      ytDlpWrap.getVideoInfo(values.url)
-      .then(res => {
-         setVideoInfo(res);
-      })
-      .catch(err => {
-        console.error(err)
-        setValidationError("url", "Video not found");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      ytDlpWrap
+        .getVideoInfo(values.url)
+        .then((res) => {
+          setVideoInfo(res);
+        })
+        .catch((err) => {
+          console.error(err);
+          setValidationError("url", "Video not found");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [values.url]);
 
   useEffect(() => {
     Clipboard.readText().then((text) => {
       if (text && isValidUrl(text)) {
-
         setValue("url", text);
       }
     });
   }, []);
-  
+
   const missingExecutable = useMemo(() => {
     if (!fs.existsSync(preferences.ytdlpBinaryPath)) {
       return "yt-dlp";
@@ -95,12 +93,11 @@ export default function Command() {
     return <NotInstalled executable={missingExecutable} onRefresh={() => setError(error + 1)} />;
   }
 
-  const videoFormats = formats
-    .filter(format => format.video_ext) || [];
+  const videoFormats = formats.filter((format) => format.video_ext) || [];
 
-  const audioFormats = formats.filter(format => format.resolution.includes("audio"))
+  const audioFormats = formats.filter((format) => format.resolution.includes("audio"));
 
-  console.log(audioFormats)
+  console.log(audioFormats);
 
   function NotInstalled({ executable, onRefresh }: { executable: string; onRefresh: () => void }) {
     return (
@@ -128,12 +125,12 @@ export default function Command() {
             icon={Icon.Download}
             onAction={async () => {
               if (isLoading) return;
-  
+
               setIsLoading(true);
-  
+
               const toast = await showToast({ style: Toast.Style.Animated, title: "Installing yt-dlp..." });
               await toast.show();
-  
+
               try {
                 execSync(`zsh -l -c 'brew install yt-dlp'`);
                 await toast.hide();
@@ -192,11 +189,13 @@ export default function Command() {
               .map((format) => (
                 <Form.Dropdown.Item
                   key={format.format_id}
-                  value={JSON.stringify({ itag: format.format_id.toString(), container: container, type: "V"} as FormatOptions)}
+                  value={JSON.stringify({
+                    itag: format.format_id.toString(),
+                    container: container,
+                    type: "V",
+                  } as FormatOptions)}
                   title={`${format.resolution}${
-                    format.filesize
-                      ? ` (${prettyBytes(format.filesize)})`
-                      : ""
+                    format.filesize ? ` (${prettyBytes(format.filesize)})` : ""
                   } [${container}] ${format.format_note ? `[${format.format_note}]` : ""}`}
                   icon={Icon.Video}
                 />
@@ -208,7 +207,7 @@ export default function Command() {
             <Form.Dropdown.Item
               key={index}
               value={JSON.stringify({ itag: String(format.format_id), type: "S" } as FormatOptions)}
-              title={`${format.abr ? format.abr + 'kps ' : format.format}${format.filesize ? `(${prettyBytes(format.filesize)}) ` : ' '}`}
+              title={`${format.abr ? format.abr + "kps " : format.format}${format.filesize ? `(${prettyBytes(format.filesize)}) ` : " "}`}
               icon={Icon.Music}
             />
           ))}

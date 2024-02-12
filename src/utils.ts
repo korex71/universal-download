@@ -5,10 +5,9 @@ import YTDlpWrap from "yt-dlp-wrap";
 import { DownloadOptions, FormatOptions } from "./interfaces";
 
 export const isValidUrl = (url: string | undefined) => {
-    if(!url)
-        return false;
-    const urlPattern = /^(ftp|http|https):\/\/[^ "]+$/;
-    return urlPattern.test(url);
+  if (!url) return false;
+  const urlPattern = /^(ftp|http|https):\/\/[^ "]+$/;
+  return urlPattern.test(url);
 };
 
 export const preferences = getPreferenceValues<{
@@ -16,120 +15,104 @@ export const preferences = getPreferenceValues<{
   ytdlpBinaryPath: string;
 }>();
 
-  
 export const download = (url: string, options: DownloadOptions) => {
-    const formatObject: FormatOptions = JSON.parse(options.format);
-  
-    const toast = new Toast({
-      title: `Downloading ${formatObject.type == "V" ? 'Video' : 'Audio'}`,
-      message: "0%",
-      style: Toast.Style.Animated,
-    });
+  const formatObject: FormatOptions = JSON.parse(options.format);
 
-    toast.show();
-  
-    const ytdlp = new YTDlpWrap(preferences.ytdlpBinaryPath);
+  const toast = new Toast({
+    title: `Downloading ${formatObject.type == "V" ? "Video" : "Audio"}`,
+    message: "0%",
+    style: Toast.Style.Animated,
+  });
 
-    const fileExtension = options.ext ? (options.ext.startsWith('.') ? options.ext : `.${options.ext}`) : '.%(ext)s'
+  toast.show();
 
-    const filePath = `${preferences.downloadPath}/%(title).150B${fileExtension}`
+  const ytdlp = new YTDlpWrap(preferences.ytdlpBinaryPath);
 
-    const args = [
-        url,
-        '-f',
-        formatObject.itag,
-        '-o',
-        filePath,
-    ]
+  const fileExtension = options.ext ? (options.ext.startsWith(".") ? options.ext : `.${options.ext}`) : ".%(ext)s";
 
-    if(options.startTime || options.endTime)
-    {
-        args.push(`--postprocessor-args "-ss ${options.startTime || "00:00:00"}${options.endTime ? ` -to ${options.endTime}` : ""}"`)
-    }
+  const filePath = `${preferences.downloadPath}/%(title).150B${fileExtension}`;
 
-    let ytDlpEventEmitter = ytdlp.exec(args)
-    .on('progress', (progress) => {
-        console.log(
-            progress.percent,
-            progress.totalSize,
-            progress.currentSpeed,
-            progress.eta
-        )
+  const args = [url, "-f", formatObject.itag, "-o", filePath];
 
-        toast.message = `${progress.percent}%`;
-    }
-    )
-    .on('ytDlpEvent', (eventType, eventData) =>
-        console.log(eventType, eventData)
-    )
-    .on('error', (error) => {
-        console.log(error)
+  if (options.startTime || options.endTime) {
+    args.push(
+      `--postprocessor-args "-ss ${options.startTime || "00:00:00"}${options.endTime ? ` -to ${options.endTime}` : ""}"`,
+    );
+  }
 
-        toast.title = "Download Failed";
-        toast.style = Toast.Style.Failure;
-        toast.message = "Please try again later.";
+  ytdlp
+    .exec(args)
+    .on("progress", (progress) => {
+      console.log(progress.percent);
 
+      toast.message = `${progress.percent}%`;
     })
-    .on('close', () => {
-        
-        toast.title = "Download Complete";
-        toast.message = url;
-        toast.style = Toast.Style.Success;
-        toast.primaryAction = {
-          title: "Open in Finder",
-          shortcut: { modifiers: ["cmd", "shift"], key: "o" },
-          onAction: () => {
-            open(path.dirname(filePath));
-          },
-        };
-        toast.secondaryAction = {
-          title: "Copy to Clipboard",
-          shortcut: { modifiers: ["cmd", "shift"], key: "c" },
-          onAction: () => {
-            Clipboard.copy({ file: filePath });
-            showHUD("Copied to Clipboard");
-          },
-        };
+    .on("ytDlpEvent", (eventType, eventData) => console.log(eventType, eventData))
+    .on("error", (error) => {
+      console.log(error);
+
+      toast.title = "Download Failed";
+      toast.style = Toast.Style.Failure;
+      toast.message = "Please try again later.";
+    })
+    .on("close", () => {
+      toast.title = "Download Complete";
+      toast.message = url;
+      toast.style = Toast.Style.Success;
+      toast.primaryAction = {
+        title: "Open in Finder",
+        shortcut: { modifiers: ["cmd", "shift"], key: "o" },
+        onAction: () => {
+          open(path.dirname(filePath));
+        },
+      };
+      toast.secondaryAction = {
+        title: "Copy to Clipboard",
+        shortcut: { modifiers: ["cmd", "shift"], key: "c" },
+        onAction: () => {
+          Clipboard.copy({ file: filePath });
+          showHUD("Copied to Clipboard");
+        },
+      };
     });
 };
 export function formatHHMM(seconds: number): string {
-    const duration = intervalToDuration({ start: 0, end: seconds * 1000 });
-    
-    const formattedDuration = formatDuration(duration, {
-      format: ["minutes", "seconds"],
-      zero: true,
-      delimiter: ":",
-      locale: {
-        formatDistance: (_token, count) => String(count).padStart(2, "0"),
-      },
-    });
-  
-    return formattedDuration;
+  const duration = intervalToDuration({ start: 0, end: seconds * 1000 });
+
+  const formattedDuration = formatDuration(duration, {
+    format: ["minutes", "seconds"],
+    zero: true,
+    delimiter: ":",
+    locale: {
+      formatDistance: (_token, count) => String(count).padStart(2, "0"),
+    },
+  });
+
+  return formattedDuration;
+}
+export function parseHHMM(input: string): number {
+  const parts = input.split(":");
+
+  if (parts.length !== 2 && parts.length !== 3) {
+    throw new Error("Invalid input");
   }
-  export function parseHHMM(input: string): number {
-    const parts = input.split(":");
-    
-    if (parts.length !== 2 && parts.length !== 3) {
-      throw new Error("Invalid input");
-    }
-  
-    const [hours, minutes, seconds = "0"] = parts.map(part => parseInt(part));
-  
-    if (isNaN(hours) || isNaN(minutes) || isNaN(+seconds)) {
-      throw new Error("Invalid input");
-    }
-  
-    return (hours || 0) * 60 * 60 + minutes * 60 + (+seconds);
+
+  const [hours, minutes, seconds = "0"] = parts.map((part) => parseInt(part));
+
+  if (isNaN(hours) || isNaN(minutes) || isNaN(+seconds)) {
+    throw new Error("Invalid input");
   }
-  
-  
-  export function isValidHHMM(input: string) {
-    try {
-      if (input) {
-        parseHHMM(input);
-      }
-      return true;
-    } catch {
-      return false;
+
+  return (hours || 0) * 60 * 60 + minutes * 60 + +seconds;
+}
+
+export function isValidHHMM(input: string) {
+  try {
+    if (input) {
+      parseHHMM(input);
     }
+    return true;
+  } catch {
+    return false;
   }
+}
