@@ -192,7 +192,7 @@ export default function Command() {
               .map((format) => (
                 <Form.Dropdown.Item
                   key={format.format_id}
-                  value={JSON.stringify({ itag: format.format_id.toString(), container: container} as FormatOptions)}
+                  value={JSON.stringify({ itag: format.format_id.toString(), container: container, type: "V"} as FormatOptions)}
                   title={`${format.resolution}${
                     format.filesize
                       ? ` (${prettyBytes(format.filesize)})`
@@ -207,7 +207,7 @@ export default function Command() {
           {audioFormats.map((format, index) => (
             <Form.Dropdown.Item
               key={index}
-              value={JSON.stringify({ itag: String(format.format_id) } as FormatOptions)}
+              value={JSON.stringify({ itag: String(format.format_id), type: "S" } as FormatOptions)}
               title={`${format.abr ? format.abr + 'kps ' : format.format}${format.filesize ? `(${prettyBytes(format.filesize)}) ` : ' '}`}
               icon={Icon.Music}
             />
@@ -215,6 +215,14 @@ export default function Command() {
         </Form.Dropdown.Section>
       </Form.Dropdown>
       <Form.Separator />
+
+      <Form.TextField
+        info="Optional field. Save as '.mp4' or '.mp3'"
+        title="Custom extension"
+        placeholder=".mp4"
+        {...itemProps.ext}
+      />
+
       <Form.TextField
         info="Optional field. Follow the format HH:MM:SS or MM:SS."
         title="Start Time"

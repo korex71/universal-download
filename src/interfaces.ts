@@ -5,11 +5,13 @@ export type DownloadOptions = {
     copyToClipboard: boolean;
     startTime?: string;
     endTime?: string;
+    ext?: string;
   };
   
   export type FormatOptions = {
       itag: string;
       container: string;
+      type: "S" | "V"
     };
 
 export interface VideoInfo {

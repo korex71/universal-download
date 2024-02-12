@@ -1,5 +1,4 @@
 import { Clipboard, Toast, getPreferenceValues, open, showHUD } from "@raycast/api";
-import crypto from "crypto";
 import { formatDuration, intervalToDuration } from "date-fns";
 import path from "path";
 import YTDlpWrap from "yt-dlp-wrap";
@@ -22,7 +21,7 @@ export const download = (url: string, options: DownloadOptions) => {
     const formatObject: FormatOptions = JSON.parse(options.format);
   
     const toast = new Toast({
-      title: "Downloading",
+      title: `Downloading ${formatObject.type == "V" ? 'Video' : 'Audio'}`,
       message: "0%",
       style: Toast.Style.Animated,
     });
@@ -31,7 +30,9 @@ export const download = (url: string, options: DownloadOptions) => {
   
     const ytdlp = new YTDlpWrap(preferences.ytdlpBinaryPath);
 
-    const filePath = `${preferences.downloadPath}/${crypto.randomUUID()}.%(ext)s`
+    const fileExtension = options.ext ? (options.ext.startsWith('.') ? options.ext : `.${options.ext}`) : '.%(ext)s'
+
+    const filePath = `${preferences.downloadPath}/%(title).150B${fileExtension}`
 
     const args = [
         url,
