@@ -13,13 +13,9 @@ export const isValidUrl = (url: string | undefined) => {
 };
 
 export const preferences = getPreferenceValues<{
-    downloadPath: string;
+  downloadPath: string;
+  ytdlpBinaryPath: string;
 }>();
-
-export const DEFAULT_PATHS = {
-    ytdlpBinaryPath: "/opt/homebrew/bin/yt-dlp",
-    downloadPath: "~/Downloads"
-}
 
   
 export const download = (url: string, options: DownloadOptions) => {
@@ -33,9 +29,9 @@ export const download = (url: string, options: DownloadOptions) => {
 
     toast.show();
   
-    const ytdlp = new YTDlpWrap(DEFAULT_PATHS.ytdlpBinaryPath);
+    const ytdlp = new YTDlpWrap(preferences.ytdlpBinaryPath);
 
-    const filePath = `${DEFAULT_PATHS.downloadPath}/${crypto.randomUUID()}.%(ext)s`
+    const filePath = `${preferences.downloadPath}/${crypto.randomUUID()}.%(ext)s`
 
     const args = [
         url,

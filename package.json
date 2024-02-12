@@ -7,7 +7,9 @@
   "author": "korex71",
   "owner": "zend",
   "categories": [
-    "Media"
+    "Media",
+    "Applications",
+    "Data"
   ],
   "license": "MIT",
   "commands": [
@@ -17,6 +19,24 @@
       "subtitle": "Download videos",
       "description": "Download videos with link",
       "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "downloadPath",
+      "title": "Download Path",
+      "description": "Path to download video",
+      "type": "directory",
+      "default": "~/Downloads",
+      "required": true
+    },
+    {
+      "name": "ytdlpBinaryPath",
+      "title": "ytdlp Path",
+      "description": "Path to the yt-dlp executable",
+      "type": "textfield",
+      "default": "/opt/homebrew/bin/yt-dlp",
+      "required": true
     }
   ],
   "dependencies": {

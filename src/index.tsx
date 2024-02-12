@@ -6,7 +6,7 @@ import prettyBytes from "pretty-bytes";
 import { useEffect, useMemo, useState } from "react";
 import YTDlpWrap from "yt-dlp-wrap";
 import { DownloadOptions, FormatOptions, VideoInfo } from "./interfaces";
-import { DEFAULT_PATHS, download, formatHHMM, isValidHHMM, isValidUrl, parseHHMM } from "./utils";
+import { download, formatHHMM, isValidHHMM, isValidUrl, parseHHMM, preferences } from "./utils";
 
 export default function Command() {
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export default function Command() {
     if (values.url && isValidUrl(values.url)) {
       setLoading(true);
 
-      const ytDlpWrap = new YTDlpWrap(DEFAULT_PATHS.ytdlpBinaryPath);
+      const ytDlpWrap = new YTDlpWrap(preferences.ytdlpBinaryPath);
 
       ytDlpWrap.getVideoInfo(values.url)
       .then(res => {
@@ -85,7 +85,7 @@ export default function Command() {
   }, []);
   
   const missingExecutable = useMemo(() => {
-    if (!fs.existsSync(DEFAULT_PATHS.ytdlpBinaryPath)) {
+    if (!fs.existsSync(preferences.ytdlpBinaryPath)) {
       return "yt-dlp";
     }
     return null;
@@ -96,10 +96,11 @@ export default function Command() {
   }
 
   const videoFormats = formats
-    .filter(format => format.video_ext);
+    .filter(format => format.video_ext) || [];
 
-  const audioFormats = formats
-    .filter(format => !format.video_ext && format.audio_ext);
+  const audioFormats = formats.filter(format => format.resolution.includes("audio"))
+
+  console.log(audioFormats)
 
   function NotInstalled({ executable, onRefresh }: { executable: string; onRefresh: () => void }) {
     return (
@@ -203,11 +204,11 @@ export default function Command() {
           </Form.Dropdown.Section>
         ))}
         <Form.Dropdown.Section title="Audio">
-          {audioFormats.map((format) => (
+          {audioFormats.map((format, index) => (
             <Form.Dropdown.Item
-              key={format.format_id}
-              value={JSON.stringify({ itag: format.format_id.toString() } as FormatOptions)}
-              title={`${format.abr}kps (${prettyBytes(format.filesize)})`}
+              key={index}
+              value={JSON.stringify({ itag: String(format.format_id) } as FormatOptions)}
+              title={`${format.abr ? format.abr + 'kps ' : format.format}${format.filesize ? `(${prettyBytes(format.filesize)}) ` : ' '}`}
               icon={Icon.Music}
             />
           ))}
