@@ -21,7 +21,12 @@
   ],
   "dependencies": {
     "@raycast/api": "^1.67.1",
-    "@raycast/utils": "^1.4.8"
+    "@raycast/utils": "^1.4.8",
+    "date-fns": "^3.3.1",
+    "form-data": "^4.0.0",
+    "node-fetch": "^3.3.2",
+    "pretty-bytes": "^6.1.1",
+    "yt-dlp-wrap": "^2.3.12"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",

@@ -1,91 +1,231 @@
-import { ActionPanel, Action, List } from "@raycast/api";
-import { useFetch, Response } from "@raycast/utils";
-import { useState } from "react";
-import { URLSearchParams } from "node:url";
+import { Action, ActionPanel, Clipboard, Detail, Form, Icon, showToast, Toast } from "@raycast/api";
+import { FormValidation, useForm } from "@raycast/utils";
+import { execSync } from "child_process";
+import fs from "fs";
+import prettyBytes from "pretty-bytes";
+import { useEffect, useMemo, useState } from "react";
+import YTDlpWrap from "yt-dlp-wrap";
+import { DownloadOptions, FormatOptions, VideoInfo } from "./interfaces";
+import { DEFAULT_PATHS, download, formatHHMM, isValidHHMM, isValidUrl, parseHHMM } from "./utils";
 
 export default function Command() {
-  const [searchText, setSearchText] = useState("");
-  const { data, isLoading } = useFetch(
-    "https://api.npms.io/v2/search?" +
-      // send the search query to the API
-      new URLSearchParams({ q: searchText.length === 0 ? "@raycast/api" : searchText }),
-    {
-      parseResponse: parseFetchResponse,
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(0);
+  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+
+  const duration = videoInfo?.duration || 0;
+  const title = videoInfo?.title || "";
+  const formats = videoInfo?.formats || [];
+  
+  const { handleSubmit, values, itemProps, setValue, setValidationError } = useForm<DownloadOptions>({
+    onSubmit: async (values) => {
+      setLoading(true);
+
+      download(values.url, values);
+
+      setLoading(false);
+    },
+    validation: {
+      url: (value) => {
+        console.log(value)
+        if (!value) {
+          return "URL is required";
+        }
+
+      },
+      format: FormValidation.Required,
+      startTime: (value) => {
+        if (value) {
+          if (!isValidHHMM(value)) {
+            return "Invalid time format";
+          }
+        }
+      },
+      endTime: (value) => {
+        if (value) {
+          if (!isValidHHMM(value)) {
+            return "Invalid time format";
+          }
+          if (parseHHMM(value) > duration) {
+            return "End time is greater than video duration";
+          }
+        }
+      },
+    },
+  });
+
+
+  useEffect(() => {
+    if (values.url && isValidUrl(values.url)) {
+      setLoading(true);
+
+      const ytDlpWrap = new YTDlpWrap(DEFAULT_PATHS.ytdlpBinaryPath);
+
+      ytDlpWrap.getVideoInfo(values.url)
+      .then(res => {
+         setVideoInfo(res);
+      })
+      .catch(err => {
+        console.error(err)
+        setValidationError("url", "Video not found");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
     }
-  );
+  }, [values.url]);
 
-  return (
-    <List
-      isLoading={isLoading}
-      onSearchTextChange={setSearchText}
-      searchBarPlaceholder="Search npm packages..."
-      throttle
-    >
-      <List.Section title="Results" subtitle={data?.length + ""}>
-        {data?.map((searchResult) => (
-          <SearchListItem key={searchResult.name} searchResult={searchResult} />
-        ))}
-      </List.Section>
-    </List>
-  );
-}
+  useEffect(() => {
+    Clipboard.readText().then((text) => {
+      if (text && isValidUrl(text)) {
 
-function SearchListItem({ searchResult }: { searchResult: SearchResult }) {
-  return (
-    <List.Item
-      title={searchResult.name}
-      subtitle={searchResult.description}
-      accessories={[{ text: searchResult.username }]}
-      actions={
-        <ActionPanel>
-          <ActionPanel.Section>
-            <Action.OpenInBrowser title="Open in Browser" url={searchResult.url} />
-          </ActionPanel.Section>
-          <ActionPanel.Section>
-            <Action.CopyToClipboard
-              title="Copy Install Command"
-              content={`npm install ${searchResult.name}`}
-              shortcut={{ modifiers: ["cmd"], key: "." }}
-            />
-          </ActionPanel.Section>
-        </ActionPanel>
+        setValue("url", text);
       }
-    />
-  );
-}
+    });
+  }, []);
+  
+  const missingExecutable = useMemo(() => {
+    if (!fs.existsSync(DEFAULT_PATHS.ytdlpBinaryPath)) {
+      return "yt-dlp";
+    }
+    return null;
+  }, [error]);
 
-/** Parse the response from the fetch query into something we can display */
-async function parseFetchResponse(response: Response) {
-  const json = (await response.json()) as
-    | {
-        results: {
-          package: {
-            name: string;
-            description?: string;
-            publisher?: { username: string };
-            links: { npm: string };
-          };
-        }[];
-      }
-    | { code: string; message: string };
-
-  if (!response.ok || "message" in json) {
-    throw new Error("message" in json ? json.message : response.statusText);
+  if (missingExecutable) {
+    return <NotInstalled executable={missingExecutable} onRefresh={() => setError(error + 1)} />;
   }
 
-  return json.results.map((result) => {
-    return {
-      name: result.package.name,
-      description: result.package.description,
-      username: result.package.publisher?.username,
-      url: result.package.links.npm,
-    } as SearchResult;
-  });
-}
+  const videoFormats = formats
+    .filter(format => format.video_ext);
 
-interface SearchResult {
-  name: string;
-  description?: string;
-  username?: string;
-  url: string;
+  const audioFormats = formats
+    .filter(format => !format.video_ext && format.audio_ext);
+
+  function NotInstalled({ executable, onRefresh }: { executable: string; onRefresh: () => void }) {
+    return (
+      <Detail
+        actions={<AutoInstall onRefresh={onRefresh} />}
+        markdown={`
+  # 🚨 Error: \`${executable}\` is not installed
+  This extension depends on a command-line utilty that is not detected on your system. You must install it continue.
+
+  If you have homebrew installed, simply press **⏎** to have this extension install it for you. Since \`${executable}\` is a heavy library, 
+  **it can take up 2 minutes to install**.
+
+  To install homebrew, visit [this link](https://brew.sh)
+    `}
+      />
+    );
+  }
+  function AutoInstall({ onRefresh }: { onRefresh: () => void }) {
+    const [isLoading, setIsLoading] = useState(false);
+    return (
+      <ActionPanel>
+        {!isLoading && (
+          <Action
+            title="Install with Homebrew"
+            icon={Icon.Download}
+            onAction={async () => {
+              if (isLoading) return;
+  
+              setIsLoading(true);
+  
+              const toast = await showToast({ style: Toast.Style.Animated, title: "Installing yt-dlp..." });
+              await toast.show();
+  
+              try {
+                execSync(`zsh -l -c 'brew install yt-dlp'`);
+                await toast.hide();
+                onRefresh();
+              } catch (e) {
+                await toast.hide();
+                console.error(e);
+                await showToast({
+                  style: Toast.Style.Failure,
+                  title: "Error installing",
+                  message: "An unknown error occured while trying to install",
+                });
+              }
+              setIsLoading(false);
+            }}
+          />
+        )}
+      </ActionPanel>
+    );
+  }
+
+  return (
+    <Form
+      isLoading={loading}
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm
+            icon={Icon.Download}
+            title={"Download Video"}
+            onSubmit={(values) => {
+              handleSubmit({ ...values, copyToClipboard: false } as DownloadOptions);
+            }}
+          />
+          <Action.SubmitForm
+            icon={Icon.CopyClipboard}
+            title={"Copy Video"}
+            onSubmit={(values) => {
+              handleSubmit({ ...values, copyToClipboard: true } as DownloadOptions);
+            }}
+          />
+        </ActionPanel>
+      }
+    >
+      <Form.Description title="Title" text={title || "No video selected"} />
+      <Form.TextField
+        autoFocus
+        title="URL"
+        placeholder="https://www.youtube.com/watch?v=2yJgwwDcgV8"
+        {...itemProps.url}
+      />
+      <Form.Dropdown title="Format" {...itemProps.format}>
+        {["mp4", "webm"].map((container) => (
+          <Form.Dropdown.Section key={container} title={`Video (${container})`}>
+            {videoFormats
+              .filter((format) => format.ext == container)
+              .map((format) => (
+                <Form.Dropdown.Item
+                  key={format.format_id}
+                  value={JSON.stringify({ itag: format.format_id.toString(), container: container} as FormatOptions)}
+                  title={`${format.resolution}${
+                    format.filesize
+                      ? ` (${prettyBytes(format.filesize)})`
+                      : ""
+                  } [${container}] ${format.format_note ? `[${format.format_note}]` : ""}`}
+                  icon={Icon.Video}
+                />
+              ))}
+          </Form.Dropdown.Section>
+        ))}
+        <Form.Dropdown.Section title="Audio">
+          {audioFormats.map((format) => (
+            <Form.Dropdown.Item
+              key={format.format_id}
+              value={JSON.stringify({ itag: format.format_id.toString() } as FormatOptions)}
+              title={`${format.abr}kps (${prettyBytes(format.filesize)})`}
+              icon={Icon.Music}
+            />
+          ))}
+        </Form.Dropdown.Section>
+      </Form.Dropdown>
+      <Form.Separator />
+      <Form.TextField
+        info="Optional field. Follow the format HH:MM:SS or MM:SS."
+        title="Start Time"
+        placeholder="00:00"
+        {...itemProps.startTime}
+      />
+      <Form.TextField
+        info="Optional field. Follow the format HH:MM:SS or MM:SS."
+        title="End Time"
+        placeholder={duration ? formatHHMM(duration) : "00:00"}
+        {...itemProps.endTime}
+      />
+    </Form>
+  );
 }
