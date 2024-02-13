@@ -16,11 +16,12 @@ export const preferences = getPreferenceValues<{
 }>();
 
 export const download = (url: string, options: DownloadOptions) => {
-  const formatObject: FormatOptions = JSON.parse(options.format);
+  return new Promise((resolve, reject) => {
+    const formatObject: FormatOptions = JSON.parse(options.format);
 
   const toast = new Toast({
     title: `Downloading ${formatObject.type == "V" ? "Video" : "Audio"}`,
-    message: "0%",
+    message: "Getting data...",
     style: Toast.Style.Animated,
   });
 
@@ -40,25 +41,48 @@ export const download = (url: string, options: DownloadOptions) => {
     );
   }
 
-  ytdlp
-    .exec(args)
-    .on("progress", (progress) => {
-      console.log(progress.percent);
+  var controller = new AbortController();
+  var signal = controller.signal;
 
-      toast.message = `${progress.percent}%`;
+  toast.primaryAction = {
+    title: "Cancel",
+    onAction: () => {
+      controller.abort();
+      toast.hide();
+    },
+  };
+  
+  ytdlp
+    .exec(args, {signal})
+    .on("progress", (progress) => {
+      if(!progress.percent || isNaN(progress.percent))
+        return;
+
+      toast.message = `${Math.round(progress.percent)}%`;
     })
-    .on("ytDlpEvent", (eventType, eventData) => console.log(eventType, eventData))
+    .on("ytDlpEvent", (eventType, eventData) => {
+      console.log(eventType, eventData)
+
+      switch (eventType) {
+        case "info":
+          toast.message = "Starting download...";
+          break;
+      }
+    })
     .on("error", (error) => {
       console.log(error);
 
       toast.title = "Download Failed";
       toast.style = Toast.Style.Failure;
       toast.message = "Please try again later.";
+      resolve(error);
     })
     .on("close", () => {
       toast.title = "Download Complete";
       toast.message = url;
       toast.style = Toast.Style.Success;
+      showHUD(toast.title);
+      
       toast.primaryAction = {
         title: "Open in Finder",
         shortcut: { modifiers: ["cmd", "shift"], key: "o" },
@@ -74,7 +98,10 @@ export const download = (url: string, options: DownloadOptions) => {
           showHUD("Copied to Clipboard");
         },
       };
+
+      resolve(toast.title);
     });
+  })
 };
 export function formatHHMM(seconds: number): string {
   const duration = intervalToDuration({ start: 0, end: seconds * 1000 });

@@ -21,7 +21,7 @@ export default function Command() {
     onSubmit: async (values) => {
       setLoading(true);
 
-      download(values.url, values);
+      await download(values.url, values);
 
       setLoading(false);
     },
@@ -93,11 +93,12 @@ export default function Command() {
     return <NotInstalled executable={missingExecutable} onRefresh={() => setError(error + 1)} />;
   }
 
-  const videoFormats = formats.filter((format) => format.video_ext) || [];
+  const videoFormats = formats.filter((format) => !format.resolution.includes("audio")) || [];
 
   const audioFormats = formats.filter((format) => format.resolution.includes("audio"));
 
-  console.log(audioFormats);
+  const currentFormat = JSON.parse(values.format || "{}");
+  const isSelectedAudio = currentFormat.type === "S";
 
   function NotInstalled({ executable, onRefresh }: { executable: string; onRefresh: () => void }) {
     return (
@@ -159,14 +160,14 @@ export default function Command() {
         <ActionPanel>
           <Action.SubmitForm
             icon={Icon.Download}
-            title={"Download Video"}
+            title={isSelectedAudio ? "Download Audio" : "Download Video"}
             onSubmit={(values) => {
               handleSubmit({ ...values, copyToClipboard: false } as DownloadOptions);
             }}
           />
           <Action.SubmitForm
             icon={Icon.CopyClipboard}
-            title={"Copy Video"}
+            title={`Copy ${isSelectedAudio ? "Audio" : "Video"}`}
             onSubmit={(values) => {
               handleSubmit({ ...values, copyToClipboard: true } as DownloadOptions);
             }}
