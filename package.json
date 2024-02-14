@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "universal-download",
+  "name": "universal-download-ytdl",
   "title": "Universal Download",
   "description": "Universal download is wrapper of yt-dlp.",
   "icon": "command-icon.png",
