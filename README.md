@@ -1,5 +1,5 @@
 # Universal download
-## The Universal Download use yt-dlp to download videos.
+## [Raycast](https://www.raycast.com/) extension
 
 > Download Internet videos with Raycast.
 > See [supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
